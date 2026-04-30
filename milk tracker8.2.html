@@ -1,0 +1,190 @@
+<meta name='viewport' content='width=device-width, initial-scale=1'/><!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Milk Tracker Pro - Tony Boss</title>
+    <style>
+        * { -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; text-align: center; background: #f0f4f8; margin: 0; padding: 15px; overflow-x: hidden; }
+        .container { max-width: 400px; margin: auto; background: #fff; padding: 20px; border-radius: 25px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); position: relative; }
+        h2 { color: #2c3e50; margin-bottom: 20px; font-weight: 800; }
+        .header-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: #f8f9fa; padding: 10px; border-radius: 15px; }
+        .nav-btn { background: #007bff; color: white; border: none; padding: 10px 15px; border-radius: 12px; cursor: pointer; font-weight: bold; font-size: 18px; }
+        #monthName { font-weight: bold; color: #007bff; font-size: 1.1rem; cursor: pointer; padding: 8px; border-radius: 10px; border: 1px dashed #007bff; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 20px; touch-action: none; }
+        .day-header { font-size: 10px; font-weight: bold; color: #999; text-transform: uppercase; padding-bottom: 5px; }
+        .date-box { aspect-ratio: 1/1; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #f0f0f0; border-radius: 14px; cursor: pointer; font-weight: bold; background: #fafafa; font-size: 15px; position: relative; }
+        .qty-label { font-size: 9px; margin-top: 2px; font-weight: 600; }
+        .locked-icon { position: absolute; top: 2px; right: 2px; font-size: 8px; opacity: 0.5; }
+        .future-date { opacity: 0.3; cursor: not-allowed; }
+        .taken-green { background-color: #27ae60 !important; color: white; border: none; }
+        .taken-yellow { background-color: #f1c40f !important; color: #333; border: none; }
+        .missed-red { background-color: #e74c3c !important; color: white; border: none; }
+        .btn-group { display: flex; gap: 10px; margin-top: 10px; }
+        .toggle-btn { flex: 1; background: #f1f3f5; border: 1px solid #ddd; color: #495057; padding: 12px; border-radius: 15px; cursor: pointer; font-size: 14px; font-weight: 600; }
+        .collapsible-card { display: none; margin-top: 15px; padding: 18px; border-radius: 18px; background: #ffffff; border: 1px solid #eef2f3; text-align: left; }
+        .summary-item { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; color: #555; }
+        .total-price { font-size: 20px; font-weight: 800; color: #2c3e50; border-top: 2px solid #f1f1f1; padding-top: 10px; margin-top: 10px; }
+        #overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); z-index: 999; }
+        #qtyMenu, #jumpMenu, #exportMenu { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 25px; box-shadow: 0 20px 60px rgba(0,0,0,0.4); z-index: 1000; width: 280px; }
+        .menu-btn { width: 100%; padding: 10px; margin: 4px 0; border: 1px solid #eee; border-radius: 10px; background: #fff; cursor: pointer; font-weight: bold; }
+        input, textarea { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid #ddd; margin-top: 5px; box-sizing: border-box; -webkit-user-select: text; user-select: text; }
+        .share-btn { background: #27ae60; color: white; margin-top: 10px; }
+    </style>
+</head>
+<body oncontextmenu="return false;">
+
+<div id="overlay" onclick="closeAllMenus()"></div>
+
+<div id="exportMenu">
+    <h3 style="margin:0 0 10px 0;">Copy This Code</h3>
+    <textarea id="exportArea" rows="5" readonly onclick="this.select()"></textarea>
+    <p style="font-size:10px; color:gray;">Ise copy karke WhatsApp pe bhej dein.</p>
+    <button class="menu-btn" onclick="closeAllMenus()">Done</button>
+</div>
+
+<div id="jumpMenu">
+    <h3 style="margin:0 0 15px 0;">Jump to Month</h3>
+    <input type="month" id="jumpInput">
+    <button class="menu-btn" style="background:#007bff; color:white; margin-top:15px;" onclick="jumpToDate()">Go to Date</button>
+</div>
+
+<div id="qtyMenu">
+    <h3 style="margin:0 0 10px 0;">Special Qty</h3>
+    <div id="menuButtons"></div>
+    <button class="menu-btn" style="background:#f1f3f5;" onclick="askCustomQty()">✏️ Custom Qty</button>
+    <button class="menu-btn" style="color:red; border-color:#fadbd8;" onclick="setSpecialQty('none')">🗑 Reset</button>
+</div>
+
+<div class="container">
+    <h2>🥛 Milk Tracker Pro</h2>
+    <div class="header-nav">
+        <button id="prevBtn" class="nav-btn">◀</button>
+        <span id="monthName" onclick="showJumpMenu()">Loading...</span>
+        <button id="nextBtn" class="nav-btn">▶</button>
+    </div>
+    <div class="calendar-grid" id="calendar"></div>
+    <div class="btn-group">
+        <button class="toggle-btn" onclick="toggleSection('bill')">📊 Check Bill</button>
+        <button class="toggle-btn" onclick="toggleSection('settings')">⚙️ Settings</button>
+    </div>
+    <div id="billArea" class="collapsible-card">
+        <div class="summary-item"><span>Total Days:</span> <span id="totalDays">0</span></div>
+        <div class="summary-item"><span>Total Litres:</span> <span id="totalLitres">0 L</span></div>
+        <div class="summary-item total-price"><span>Total Bill:</span> <span id="totalBill">₹ 0</span></div>
+    </div>
+    <div id="settingsArea" class="collapsible-card">
+        Rate: <input type="number" id="rateInput" value="65" onchange="updateSettings()"><br>
+        Default: <input type="number" id="qtyInput" value="2" step="0.5" onchange="updateSettings()">
+        <hr style="margin:15px 0; border:0; border-top:1px solid #eee;">
+        <button class="menu-btn share-btn" onclick="exportData()">📤 Copy Data Code</button>
+        <button class="menu-btn" style="background:#f8f9fa;" onclick="importData()">📥 Import Data Code</button>
+    </div>
+</div>
+
+<script>
+    let viewDate = new Date();
+    const startDate = new Date(2026, 3, 1);
+    const today = new Date(); today.setHours(0,0,0,0);
+    const LOCK_TIME = 24 * 60 * 60 * 1000;
+    const STORAGE_PREFIX = "TONY_BOSS_MILK_DATA"; 
+
+    let config = JSON.parse(localStorage.getItem('milk_config')) || { rate: 65, defaultQty: 2 };
+    let activeDay = null, longPressTimer;
+
+    function migrateData(y, m) {
+        const newKey = `${STORAGE_PREFIX}_${y}_${m}`;
+        if (!localStorage.getItem(newKey)) {
+            for (let v = 17; v >= 1; v--) {
+                let oldKey = `milk_v${v}_${y}_${m}`;
+                let oldData = localStorage.getItem(oldKey);
+                if (oldData) { localStorage.setItem(newKey, oldData); break; }
+            }
+        }
+    }
+
+    function renderCalendar() {
+        const cal = document.getElementById('calendar');
+        const m = viewDate.getMonth(), y = viewDate.getFullYear();
+        document.getElementById('monthName').innerText = `${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m]} ${y}`;
+        migrateData(y, m);
+        const storageKey = `${STORAGE_PREFIX}_${y}_${m}`;
+        let savedData = JSON.parse(localStorage.getItem(storageKey)) || {};
+        const firstDay = new Date(y, m, 1).getDay(), daysInMonth = new Date(y, m + 1, 0).getDate();
+        cal.innerHTML = `<div class="day-header">S</div><div class="day-header">M</div><div class="day-header">T</div><div class="day-header">W</div><div class="day-header">T</div><div class="day-header">F</div><div class="day-header">S</div>`;
+        for (let i = 0; i < firstDay; i++) cal.appendChild(document.createElement('div'));
+        for (let d = 1; d <= daysInMonth; d++) {
+            const box = document.createElement('div');
+            box.className = 'date-box';
+            const boxDate = new Date(y, m, d);
+            const isFuture = boxDate > today;
+            if(isFuture) box.classList.add('future-date');
+            let entry = savedData[d] || { status: 'none', ts: null };
+            let isLocked = entry.ts && (Date.now() - entry.ts > LOCK_TIME);
+            box.innerHTML = `<span>${d}</span><span class="qty-label"></span>${isLocked ? '<span class="locked-icon">🔒</span>' : ''}`;
+            const ql = box.querySelector('.qty-label');
+            if (entry.status === 'missed') { box.classList.add('missed-red'); ql.innerText = "No"; }
+            else if (entry.status === config.defaultQty + 'L') { box.classList.add('taken-green'); ql.innerText = entry.status; }
+            else if (entry.status !== 'none') { box.classList.add('taken-yellow'); ql.innerText = entry.status; }
+            box.onclick = () => {
+                if(isFuture || isLocked) return;
+                let next = (entry.status === 'none' || entry.status === 'missed') ? config.defaultQty + 'L' : 'missed';
+                savedData[d] = { status: next, ts: Date.now() };
+                localStorage.setItem(storageKey, JSON.stringify(savedData));
+                renderCalendar();
+            };
+            box.ontouchstart = () => { if(!isFuture && !isLocked) longPressTimer = setTimeout(() => { activeDay = d; showQtyMenu(); }, 600); };
+            box.ontouchend = () => clearTimeout(longPressTimer);
+            cal.appendChild(box);
+        }
+        calculateTotal(savedData);
+    }
+
+    function exportData() {
+        let allData = {};
+        for (let i = 0; i < localStorage.length; i++) {
+            let key = localStorage.key(i);
+            if (key.startsWith(STORAGE_PREFIX) || key === 'milk_config') allData[key] = localStorage.getItem(key);
+        }
+        const code = btoa(JSON.stringify(allData));
+        const area = document.getElementById('exportArea');
+        area.value = code;
+        document.getElementById('exportMenu').style.display = 'block';
+        document.getElementById('overlay').style.display = 'block';
+        
+        // Try auto-copy
+        try {
+            area.select();
+            document.execCommand('copy');
+            alert("Code Auto-Copy ho gaya! Agar nahi hua toh box se copy karlein.");
+        } catch(e) {}
+    }
+
+    function importData() {
+        const code = prompt("WhatsApp wala code yahan paste karein:");
+        if (!code) return;
+        try {
+            const decoded = JSON.parse(atob(code));
+            for (let key in decoded) localStorage.setItem(key, decoded[key]);
+            alert("Tony Boss, Data successfully import ho gaya!");
+            location.reload();
+        } catch(e) { alert("Invalid Code! Pura code sahi se paste karein."); }
+    }
+
+    function calculateTotal(data) { let l = 0, d = 0; for (let k in data) if (data[k].status && data[k].status.includes('L')) { l += parseFloat(data[k].status); d++; } document.getElementById('totalDays').innerText = d; document.getElementById('totalLitres').innerText = l.toFixed(1) + " L"; document.getElementById('totalBill').innerText = "₹ " + Math.round(l * config.rate); }
+    function changeMonth(s) { viewDate.setMonth(viewDate.getMonth() + s); if (viewDate < startDate) viewDate = new Date(startDate); renderCalendar(); }
+    document.getElementById('prevBtn').onclick = () => changeMonth(-1);
+    document.getElementById('nextBtn').onclick = () => changeMonth(1);
+    function showJumpMenu() { document.getElementById('jumpMenu').style.display = 'block'; document.getElementById('overlay').style.display = 'block'; }
+    function jumpToDate() { const val = document.getElementById('jumpInput').value; if(!val) return; const [y, m] = val.split('-'); viewDate = new Date(y, m - 1, 1); closeAllMenus(); renderCalendar(); }
+    function showQtyMenu() { const m = document.getElementById('menuButtons'); m.innerHTML = ''; ['1L','1.5L','2L','2.5L','3L','4L'].forEach(q => { const b = document.createElement('button'); b.className = 'menu-btn'; b.innerText = "🥛 " + q; b.onclick = () => setSpecialQty(q); m.appendChild(b); }); document.getElementById('qtyMenu').style.display = 'block'; document.getElementById('overlay').style.display = 'block'; }
+    function askCustomQty() { let val = prompt("Custom Litres:"); if(val && !isNaN(val)) setSpecialQty(val + 'L'); }
+    function toggleSection(id) { let el = document.getElementById(id + 'Area'); el.style.display = (el.style.display === 'block') ? 'none' : 'block'; }
+    function closeAllMenus() { document.getElementById('qtyMenu').style.display = 'none'; document.getElementById('jumpMenu').style.display = 'none'; document.getElementById('exportMenu').style.display = 'none'; document.getElementById('overlay').style.display = 'none'; }
+    function updateSettings() { config.rate = parseFloat(document.getElementById('rateInput').value) || 65; config.defaultQty = parseFloat(document.getElementById('qtyInput').value) || 2; localStorage.setItem('milk_config', JSON.stringify(config)); renderCalendar(); }
+    function setSpecialQty(q) { const sk = `${STORAGE_PREFIX}_${viewDate.getFullYear()}_${viewDate.getMonth()}`; let d = JSON.parse(localStorage.getItem(sk)) || {}; if (q === 'none') delete d[activeDay]; else d[activeDay] = { status: q, ts: Date.now() }; localStorage.setItem(sk, JSON.stringify(d)); closeAllMenus(); renderCalendar(); }
+    renderCalendar();
+</script>
+</body>
+</html>
